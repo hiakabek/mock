@@ -1,0 +1,407 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isBootstrapAdmin() {
+      return isVerified() && request.auth.token.email == 'ur.usmonov@gmail.com';
+    }
+
+    function isAdmin() {
+      return isBootstrapAdmin() || (
+        isVerified() && exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isValidStringArray(arr, maxLen) {
+      return arr is list && arr.size() <= maxLen && (arr.size() == 0 || arr[0] is string);
+    }
+
+    function isValidUserProfile(data) {
+      return data.keys().hasAll([
+          'uid', 'email', 'displayName', 'role', 'plan',
+          'currentLevel', 'targetBand', 'xp', 'streak', 'studyHours',
+          'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'uid', 'email', 'displayName', 'bio', 'role', 'plan',
+          'currentLevel', 'targetBand', 'examDate', 'dailyStudyMinutes',
+          'dailyWordGoal', 'xp', 'streak', 'studyHours',
+          'masteredWordIds', 'favoriteWordIds', 'completedGrammarIds',
+          'unlockedAchievementIds', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.uid)
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 200
+        && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 100
+        && (!('bio' in data) || (data.bio is string && data.bio.size() <= 400))
+        && data.role in ['student', 'admin']
+        && data.plan in ['free', 'premium']
+        && data.currentLevel in ['A1', 'A2', 'B1', 'B2', 'C1', 'C2']
+        && data.targetBand is number && data.targetBand >= 4.0 && data.targetBand <= 9.0
+        && (!('examDate' in data) || (data.examDate is string && data.examDate.size() <= 32))
+        && (!('dailyStudyMinutes' in data) || (data.dailyStudyMinutes is number && data.dailyStudyMinutes >= 15 && data.dailyStudyMinutes <= 600))
+        && (!('dailyWordGoal' in data) || (data.dailyWordGoal is number && data.dailyWordGoal >= 5 && data.dailyWordGoal <= 200))
+        && data.xp is number && data.xp >= 0 && data.xp <= 1000000
+        && data.streak is number && data.streak >= 0 && data.streak <= 3650
+        && data.studyHours is number && data.studyHours >= 0 && data.studyHours <= 50000
+        && (!('masteredWordIds' in data) || isValidStringArray(data.masteredWordIds, 500))
+        && (!('favoriteWordIds' in data) || isValidStringArray(data.favoriteWordIds, 500))
+        && (!('completedGrammarIds' in data) || isValidStringArray(data.completedGrammarIds, 100))
+        && (!('unlockedAchievementIds' in data) || isValidStringArray(data.unlockedAchievementIds, 100))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidLeaderboardEntry(data) {
+      return data.keys().hasAll([
+          'userId', 'displayName', 'xp', 'weeklyXp', 'monthlyXp',
+          'streak', 'bestBand', 'mocksCompleted', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'userId', 'displayName', 'xp', 'weeklyXp', 'monthlyXp',
+          'streak', 'bestBand', 'mocksCompleted', 'updatedAt'
+        ])
+        && isValidId(data.userId)
+        && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 80
+        && data.xp is number && data.xp >= 0 && data.xp <= 1000000
+        && data.weeklyXp is number && data.weeklyXp >= 0 && data.weeklyXp <= 100000
+        && data.monthlyXp is number && data.monthlyXp >= 0 && data.monthlyXp <= 300000
+        && data.streak is number && data.streak >= 0 && data.streak <= 3650
+        && data.bestBand is number && data.bestBand >= 0 && data.bestBand <= 9.0
+        && data.mocksCompleted is number && data.mocksCompleted >= 0 && data.mocksCompleted <= 5000
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidAttempt(data) {
+      return data.keys().hasAll([
+          'userId', 'type', 'testId', 'testTitle', 'score',
+          'maxScore', 'estimatedBand', 'durationSeconds', 'status', 'createdAt'
+        ])
+        && data.keys().hasOnly([
+          'userId', 'type', 'testId', 'testTitle', 'score',
+          'maxScore', 'estimatedBand', 'listeningBand', 'readingBand',
+          'writingBand', 'speakingBand', 'durationSeconds', 'status', 'createdAt'
+        ])
+        && isValidId(data.userId)
+        && data.type in ['listening', 'reading', 'writing', 'speaking', 'full_mock']
+        && data.testId is string && data.testId.size() >= 1 && data.testId.size() <= 128
+        && data.testTitle is string && data.testTitle.size() >= 1 && data.testTitle.size() <= 200
+        && data.score is number && data.score >= 0 && data.score <= 200
+        && data.maxScore is number && data.maxScore >= 1 && data.maxScore <= 200
+        && data.estimatedBand is number && data.estimatedBand >= 0 && data.estimatedBand <= 9.0
+        && (!('listeningBand' in data) || (data.listeningBand is number && data.listeningBand >= 0 && data.listeningBand <= 9.0))
+        && (!('readingBand' in data) || (data.readingBand is number && data.readingBand >= 0 && data.readingBand <= 9.0))
+        && (!('writingBand' in data) || (data.writingBand is number && data.writingBand >= 0 && data.writingBand <= 9.0))
+        && (!('speakingBand' in data) || (data.speakingBand is number && data.speakingBand >= 0 && data.speakingBand <= 9.0))
+        && data.durationSeconds is number && data.durationSeconds >= 0 && data.durationSeconds <= 28800
+        && data.status == 'completed'
+        && data.createdAt is timestamp;
+    }
+
+    function isValidWritingSubmission(data) {
+      return data.keys().hasAll([
+          'userId', 'taskType', 'promptTitle', 'essayText',
+          'wordCount', 'estimatedBand', 'createdAt'
+        ])
+        && data.keys().hasOnly([
+          'userId', 'taskType', 'promptTitle', 'essayText',
+          'wordCount', 'estimatedBand', 'feedbackSummary', 'createdAt'
+        ])
+        && isValidId(data.userId)
+        && data.taskType in ['academic_task1', 'gt_task1', 'task2']
+        && data.promptTitle is string && data.promptTitle.size() >= 1 && data.promptTitle.size() <= 250
+        && data.essayText is string && data.essayText.size() >= 1 && data.essayText.size() <= 12000
+        && data.wordCount is number && data.wordCount >= 0 && data.wordCount <= 5000
+        && data.estimatedBand is number && data.estimatedBand >= 0 && data.estimatedBand <= 9.0
+        && (!('feedbackSummary' in data) || (data.feedbackSummary is string && data.feedbackSummary.size() <= 4000))
+        && data.createdAt is timestamp;
+    }
+
+    function isValidSpeakingSubmission(data) {
+      return data.keys().hasAll([
+          'userId', 'part', 'topicTitle', 'transcript',
+          'durationSeconds', 'estimatedBand', 'createdAt'
+        ])
+        && data.keys().hasOnly([
+          'userId', 'part', 'topicTitle', 'transcript',
+          'durationSeconds', 'estimatedBand', 'feedbackSummary', 'createdAt'
+        ])
+        && isValidId(data.userId)
+        && data.part in ['part1', 'part2', 'part3']
+        && data.topicTitle is string && data.topicTitle.size() >= 1 && data.topicTitle.size() <= 200
+        && data.transcript is string && data.transcript.size() >= 1 && data.transcript.size() <= 8000
+        && data.durationSeconds is number && data.durationSeconds >= 0 && data.durationSeconds <= 1800
+        && data.estimatedBand is number && data.estimatedBand >= 0 && data.estimatedBand <= 9.0
+        && (!('feedbackSummary' in data) || (data.feedbackSummary is string && data.feedbackSummary.size() <= 4000))
+        && data.createdAt is timestamp;
+    }
+
+    function isValidStudyPlan(data) {
+      return data.keys().hasAll([
+          'userId', 'durationDays', 'currentLevel', 'targetBand',
+          'dailyMinutes', 'completedTaskIds', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'userId', 'durationDays', 'currentLevel', 'targetBand',
+          'examDate', 'dailyMinutes', 'completedTaskIds', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.userId)
+        && data.durationDays in [7, 30, 60, 90]
+        && data.currentLevel in ['A1', 'A2', 'B1', 'B2', 'C1', 'C2']
+        && data.targetBand is number && data.targetBand >= 4.0 && data.targetBand <= 9.0
+        && (!('examDate' in data) || (data.examDate is string && data.examDate.size() <= 32))
+        && data.dailyMinutes is number && data.dailyMinutes >= 15 && data.dailyMinutes <= 480
+        && isValidStringArray(data.completedTaskIds, 400)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidCustomContent(data) {
+      return data.keys().hasAll([
+          'contentType', 'title', 'category', 'published', 'authorId', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'contentType', 'title', 'category', 'summary', 'body',
+          'published', 'authorId', 'createdAt', 'updatedAt'
+        ])
+        && data.contentType in ['listening', 'reading', 'writing', 'speaking', 'vocabulary', 'grammar', 'article', 'announcement']
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 200
+        && data.category is string && data.category.size() >= 1 && data.category.size() <= 100
+        && (!('summary' in data) || (data.summary is string && data.summary.size() <= 1000))
+        && (!('body' in data) || (data.body is string && data.body.size() <= 20000))
+        && data.published is bool
+        && isValidId(data.authorId)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidAdminRecord(data) {
+      return data.keys().hasAll(['uid', 'email', 'grantedAt'])
+        && data.keys().hasOnly(['uid', 'email', 'grantedAt'])
+        && isValidId(data.uid)
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 200
+        && data.grantedAt is timestamp;
+    }
+
+    // 1. Private User Profiles (PII Isolated; O(1) list guards)
+    match /users/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isSignedIn() && (resource.data.uid == request.auth.uid || isBootstrapAdmin());
+      allow create: if isVerified()
+        && isValidId(userId)
+        && isOwner(userId)
+        && isValidUserProfile(incoming())
+        && incoming().uid == request.auth.uid
+        && incoming().email == request.auth.token.email
+        && incoming().role == 'student'
+        && incoming().plan == 'free'
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isVerified()
+        && isValidId(userId)
+        && isValidUserProfile(incoming())
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin() || (
+            isOwner(userId)
+            && incoming().role == existing().role
+            && incoming().plan == existing().plan
+            && incoming().email == existing().email
+            && incoming().diff(existing()).affectedKeys().hasOnly([
+              'displayName', 'bio', 'currentLevel', 'targetBand', 'examDate',
+              'dailyStudyMinutes', 'dailyWordGoal', 'xp', 'streak', 'studyHours',
+              'masteredWordIds', 'favoriteWordIds', 'completedGrammarIds',
+              'unlockedAchievementIds', 'updatedAt'
+            ])
+          )
+        );
+      allow delete: if isValidId(userId) && isAdmin();
+    }
+
+    // 2. Public Non-PII Leaderboard
+    match /leaderboard/{userId} {
+      allow get: if isValidId(userId) && isSignedIn();
+      allow list: if isSignedIn() && resource.data.xp >= 0;
+      allow create: if isVerified()
+        && isValidId(userId)
+        && isOwner(userId)
+        && isValidLeaderboardEntry(incoming())
+        && incoming().userId == request.auth.uid
+        && incoming().updatedAt == request.time;
+      allow update: if isVerified()
+        && isValidId(userId)
+        && isValidLeaderboardEntry(incoming())
+        && incoming().userId == existing().userId
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin() || (
+            isOwner(userId)
+            && incoming().diff(existing()).affectedKeys().hasOnly([
+              'displayName', 'xp', 'weeklyXp', 'monthlyXp',
+              'streak', 'bestBand', 'mocksCompleted', 'updatedAt'
+            ])
+          )
+        );
+      allow delete: if isValidId(userId) && (isOwner(userId) || isAdmin());
+    }
+
+    // 3. Test & Mock Exam Attempts (Terminal State Locked)
+    match /attempts/{attemptId} {
+      allow get: if isValidId(attemptId) && isSignedIn() && (existing().userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isBootstrapAdmin());
+      allow create: if isVerified()
+        && isValidId(attemptId)
+        && isValidAttempt(incoming())
+        && incoming().userId == request.auth.uid
+        && incoming().createdAt == request.time;
+      allow update: if isVerified()
+        && isValidId(attemptId)
+        && isValidAttempt(incoming())
+        && isAdmin()
+        && incoming().userId == existing().userId
+        && incoming().createdAt == existing().createdAt;
+      allow delete: if isValidId(attemptId) && (existing().userId == request.auth.uid || isAdmin());
+    }
+
+    // 4. Writing Submissions
+    match /writingSubmissions/{submissionId} {
+      allow get: if isValidId(submissionId) && isSignedIn() && (existing().userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isBootstrapAdmin());
+      allow create: if isVerified()
+        && isValidId(submissionId)
+        && isValidWritingSubmission(incoming())
+        && incoming().userId == request.auth.uid
+        && incoming().createdAt == request.time;
+      allow update: if isVerified()
+        && isValidId(submissionId)
+        && isValidWritingSubmission(incoming())
+        && incoming().userId == existing().userId
+        && incoming().createdAt == existing().createdAt
+        && (
+          isAdmin() || (
+            existing().userId == request.auth.uid
+            && incoming().diff(existing()).affectedKeys().hasOnly(['estimatedBand', 'feedbackSummary'])
+          )
+        );
+      allow delete: if isValidId(submissionId) && (existing().userId == request.auth.uid || isAdmin());
+    }
+
+    // 5. Speaking Submissions
+    match /speakingSubmissions/{submissionId} {
+      allow get: if isValidId(submissionId) && isSignedIn() && (existing().userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isBootstrapAdmin());
+      allow create: if isVerified()
+        && isValidId(submissionId)
+        && isValidSpeakingSubmission(incoming())
+        && incoming().userId == request.auth.uid
+        && incoming().createdAt == request.time;
+      allow update: if isVerified()
+        && isValidId(submissionId)
+        && isValidSpeakingSubmission(incoming())
+        && incoming().userId == existing().userId
+        && incoming().createdAt == existing().createdAt
+        && (
+          isAdmin() || (
+            existing().userId == request.auth.uid
+            && incoming().diff(existing()).affectedKeys().hasOnly(['estimatedBand', 'feedbackSummary'])
+          )
+        );
+      allow delete: if isValidId(submissionId) && (existing().userId == request.auth.uid || isAdmin());
+    }
+
+    // 6. Personalized Study Plans
+    match /studyPlans/{planId} {
+      allow get: if isValidId(planId) && isSignedIn() && (existing().userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isBootstrapAdmin());
+      allow create: if isVerified()
+        && isValidId(planId)
+        && isValidStudyPlan(incoming())
+        && incoming().userId == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isVerified()
+        && isValidId(planId)
+        && isValidStudyPlan(incoming())
+        && incoming().userId == existing().userId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin() || (
+            existing().userId == request.auth.uid
+            && incoming().diff(existing()).affectedKeys().hasOnly([
+              'durationDays', 'currentLevel', 'targetBand', 'examDate',
+              'dailyMinutes', 'completedTaskIds', 'updatedAt'
+            ])
+          )
+        );
+      allow delete: if isValidId(planId) && (existing().userId == request.auth.uid || isAdmin());
+    }
+
+    // 7. Admin-Published Educational Content & Announcements
+    match /customContent/{contentId} {
+      allow get: if isValidId(contentId) && (existing().published == true || isAdmin());
+      allow list: if resource.data.published == true || isBootstrapAdmin();
+      allow create: if isVerified()
+        && isValidId(contentId)
+        && isValidCustomContent(incoming())
+        && isAdmin()
+        && incoming().authorId == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isVerified()
+        && isValidId(contentId)
+        && isValidCustomContent(incoming())
+        && isAdmin()
+        && incoming().authorId == existing().authorId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time;
+      allow delete: if isValidId(contentId) && isAdmin();
+    }
+
+    // 8. Admin Role Registry
+    match /admins/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isBootstrapAdmin() && resource.data.uid is string;
+      allow create: if isVerified()
+        && isValidId(userId)
+        && isValidAdminRecord(incoming())
+        && isAdmin()
+        && incoming().grantedAt == request.time;
+      allow update: if isVerified()
+        && isValidId(userId)
+        && isValidAdminRecord(incoming())
+        && isAdmin()
+        && incoming().uid == existing().uid;
+      allow delete: if isValidId(userId) && isAdmin();
+    }
+  }
+}

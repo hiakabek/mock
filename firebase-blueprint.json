@@ -1,0 +1,182 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Private student or admin profile including PII, study preferences, and aggregated learning progress.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "email": { "type": "string", "format": "email", "maxLength": 200 },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "bio": { "type": "string", "maxLength": 400 },
+        "role": { "type": "string", "enum": ["student", "admin"] },
+        "plan": { "type": "string", "enum": ["free", "premium"] },
+        "currentLevel": { "type": "string", "enum": ["A1", "A2", "B1", "B2", "C1", "C2"] },
+        "targetBand": { "type": "number" },
+        "examDate": { "type": "string", "maxLength": 32 },
+        "dailyStudyMinutes": { "type": "number" },
+        "dailyWordGoal": { "type": "number" },
+        "xp": { "type": "number" },
+        "streak": { "type": "number" },
+        "studyHours": { "type": "number" },
+        "masteredWordIds": { "type": "array" },
+        "favoriteWordIds": { "type": "array" },
+        "completedGrammarIds": { "type": "array" },
+        "unlockedAchievementIds": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "displayName", "role", "plan", "currentLevel", "targetBand", "xp", "streak", "studyHours", "createdAt", "updatedAt"]
+    },
+    "LeaderboardEntry": {
+      "title": "LeaderboardEntry",
+      "description": "Public non-PII leaderboard ranking record for friendly learner competition.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "xp": { "type": "number" },
+        "weeklyXp": { "type": "number" },
+        "monthlyXp": { "type": "number" },
+        "streak": { "type": "number" },
+        "bestBand": { "type": "number" },
+        "mocksCompleted": { "type": "number" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "displayName", "xp", "weeklyXp", "monthlyXp", "streak", "bestBand", "mocksCompleted", "updatedAt"]
+    },
+    "TestAttempt": {
+      "title": "TestAttempt",
+      "description": "Completed practice test or full mock examination result.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "type": { "type": "string", "enum": ["listening", "reading", "writing", "speaking", "full_mock"] },
+        "testId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "testTitle": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "score": { "type": "number" },
+        "maxScore": { "type": "number" },
+        "estimatedBand": { "type": "number" },
+        "listeningBand": { "type": "number" },
+        "readingBand": { "type": "number" },
+        "writingBand": { "type": "number" },
+        "speakingBand": { "type": "number" },
+        "durationSeconds": { "type": "number" },
+        "status": { "type": "string", "enum": ["completed"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "type", "testId", "testTitle", "score", "maxScore", "estimatedBand", "durationSeconds", "status", "createdAt"]
+    },
+    "WritingSubmission": {
+      "title": "WritingSubmission",
+      "description": "Saved IELTS Writing Task 1 or Task 2 submission with optional AI evaluation summary.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "taskType": { "type": "string", "enum": ["academic_task1", "gt_task1", "task2"] },
+        "promptTitle": { "type": "string", "minLength": 1, "maxLength": 250 },
+        "essayText": { "type": "string", "minLength": 1, "maxLength": 12000 },
+        "wordCount": { "type": "number" },
+        "estimatedBand": { "type": "number" },
+        "feedbackSummary": { "type": "string", "maxLength": 4000 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "taskType", "promptTitle", "essayText", "wordCount", "estimatedBand", "createdAt"]
+    },
+    "SpeakingSubmission": {
+      "title": "SpeakingSubmission",
+      "description": "Saved IELTS Speaking practice transcript and AI evaluation.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "part": { "type": "string", "enum": ["part1", "part2", "part3"] },
+        "topicTitle": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "transcript": { "type": "string", "minLength": 1, "maxLength": 8000 },
+        "durationSeconds": { "type": "number" },
+        "estimatedBand": { "type": "number" },
+        "feedbackSummary": { "type": "string", "maxLength": 4000 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "part", "topicTitle", "transcript", "durationSeconds", "estimatedBand", "createdAt"]
+    },
+    "StudyPlanRecord": {
+      "title": "StudyPlanRecord",
+      "description": "Personalized IELTS study plan with daily checklist completion state.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "durationDays": { "type": "number" },
+        "currentLevel": { "type": "string", "enum": ["A1", "A2", "B1", "B2", "C1", "C2"] },
+        "targetBand": { "type": "number" },
+        "examDate": { "type": "string", "maxLength": 32 },
+        "dailyMinutes": { "type": "number" },
+        "completedTaskIds": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "durationDays", "currentLevel", "targetBand", "dailyMinutes", "completedTaskIds", "createdAt", "updatedAt"]
+    },
+    "CustomContent": {
+      "title": "CustomContent",
+      "description": "Admin-managed IELTS tests, vocabulary, grammar lessons, articles, and announcements.",
+      "type": "object",
+      "properties": {
+        "contentType": { "type": "string", "enum": ["listening", "reading", "writing", "speaking", "vocabulary", "grammar", "article", "announcement"] },
+        "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "category": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "summary": { "type": "string", "maxLength": 1000 },
+        "body": { "type": "string", "maxLength": 20000 },
+        "published": { "type": "boolean" },
+        "authorId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["contentType", "title", "category", "published", "authorId", "createdAt", "updatedAt"]
+    },
+    "AdminRecord": {
+      "title": "AdminRecord",
+      "description": "Trusted administrator membership document used by security rules.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "email": { "type": "string", "format": "email", "maxLength": 200 },
+        "grantedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "grantedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Private user profiles and progress (owner or admin access only)."
+    },
+    "/leaderboard/{userId}": {
+      "schema": { "$ref": "#/entities/LeaderboardEntry" },
+      "description": "Public non-PII learner leaderboard rankings."
+    },
+    "/attempts/{attemptId}": {
+      "schema": { "$ref": "#/entities/TestAttempt" },
+      "description": "Completed practice and mock exam attempts."
+    },
+    "/writingSubmissions/{submissionId}": {
+      "schema": { "$ref": "#/entities/WritingSubmission" },
+      "description": "User writing essays and AI evaluations."
+    },
+    "/speakingSubmissions/{submissionId}": {
+      "schema": { "$ref": "#/entities/SpeakingSubmission" },
+      "description": "User speaking recordings/transcripts and AI evaluations."
+    },
+    "/studyPlans/{planId}": {
+      "schema": { "$ref": "#/entities/StudyPlanRecord" },
+      "description": "Personalized study plans and task completion state."
+    },
+    "/customContent/{contentId}": {
+      "schema": { "$ref": "#/entities/CustomContent" },
+      "description": "Admin-published educational content and announcements."
+    },
+    "/admins/{userId}": {
+      "schema": { "$ref": "#/entities/AdminRecord" },
+      "description": "Trusted admin role registry."
+    }
+  }
+}

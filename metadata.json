@@ -1,0 +1,6 @@
+{
+  "name": "IELTS MASTER",
+  "description": "Complete IELTS preparation platform with 20 Listening & 20 Reading tests, Writing & Speaking studios, full computer-delivered mock exams, AI evaluation, vocabulary builder, grammar academy, study plans, and admin console.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
